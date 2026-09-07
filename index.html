@@ -3,301 +3,445 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Escáner de Documentos Web</title>
+    <title>Escáner Profesional A4</title>
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     
     <style>
         body {
             background-color: #f8f9fa;
-            touch-action: manipulation; /* Evita zoom accidental en móviles */
-        }
-        
-        /* Contenedor de la cámara */
-        #camera-container {
-            position: relative;
-            width: 100%;
-            max-height: 50vh;
-            background-color: #000;
-            overflow: hidden;
-            border-bottom: 2px solid #dee2e6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            touch-action: manipulation; /* Previene zoom táctil accidental */
+            padding-bottom: 90px;
         }
 
+        /* --- ZONA SUPERIOR: Visor de Cámara --- */
+        #viewport-container {
+            width: 100%;
+            height: 60vh; /* Ocupa el 60% de la pantalla */
+            background-color: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* El video cubre todo el espacio sin deformarse */
         #video-feed {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Asegura que el video llene el contenedor sin deformarse */
+            object-fit: cover;
         }
 
-        /* Efecto de flash al tomar la foto */
-        #flash-overlay {
+        /* --- MÁSCARA Y GUÍA DE ESCANEO A4 --- */
+        #scanner-guide {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: white;
-            opacity: 0;
-            pointer-events: none;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; /* Ancho responsivo */
+            max-width: 380px;
+            aspect-ratio: 1 / 1.414; /* Proporción estándar de hoja A4 / Carta */
+            
+            /* El shadow gigante crea el efecto de fondo oscuro alrededor de la zona de escaneo */
+            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.65);
+            border: 2px dashed rgba(255, 255, 255, 0.4);
+            z-index: 5;
+            pointer-events: none; /* Los clicks pasan a través */
+            transition: all 0.3s ease;
+        }
+
+        /* Marcas en las esquinas de la guía */
+        .corner-mark {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-color: #0d6efd;
+            border-style: solid;
+            border-width: 0;
+            z-index: 6;
+        }
+        .top-left { top: -2px; left: -2px; border-top-width: 4px; border-left-width: 4px; border-top-left-radius: 8px;}
+        .top-right { top: -2px; right: -2px; border-top-width: 4px; border-right-width: 4px; border-top-right-radius: 8px;}
+        .bottom-left { bottom: -2px; left: -2px; border-bottom-width: 4px; border-left-width: 4px; border-bottom-left-radius: 8px;}
+        .bottom-right { bottom: -2px; right: -2px; border-bottom-width: 4px; border-right-width: 4px; border-bottom-right-radius: 8px;}
+
+        /* Vista previa de la foto capturada */
+        #photo-preview {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 380px;
+            aspect-ratio: 1 / 1.414;
+            object-fit: cover;
+            border-radius: 8px;
             z-index: 10;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
-        .flash-animation {
-            animation: flashAnim 0.3s ease-out;
+        /* Botón Flotante para cambiar de cámara */
+        .btn-switch-camera {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 20;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            backdrop-filter: blur(5px);
         }
 
-        @keyframes flashAnim {
-            0% { opacity: 1; }
-            100% { opacity: 0; }
+        /* --- CONTROLES DE BOTONES --- */
+        .controls-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            position: relative;
+            z-index: 15;
         }
 
-        /* Cuadrícula de fotos */
+        /* --- GALERÍA SORTABLE --- */
         .gallery-item {
             position: relative;
-            cursor: grab;
+            background: #fff;
             border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            background-color: #fff;
+            padding: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            cursor: grab;
+            aspect-ratio: 1 / 1.414; /* Mantener la proporción en las miniaturas */
         }
-
         .gallery-item img {
             width: 100%;
-            height: 120px;
-            object-fit: cover;
-            display: block;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
         }
-
-        /* Estilo para el elemento que está siendo arrastrado por SortableJS */
-        .sortable-ghost {
-            opacity: 0.4;
-            border: 2px dashed #0d6efd;
-        }
-
-        /* Botón de eliminar sobre la miniatura */
-        .btn-delete-img {
+        .sortable-ghost { opacity: 0.3; border: 2px dashed #0d6efd; }
+        
+        .btn-delete {
             position: absolute;
-            top: 5px;
-            right: 5px;
+            top: -8px;
+            right: -8px;
+            background: #dc3545;
+            color: white;
+            border: none;
             border-radius: 50%;
-            padding: 0.1rem 0.3rem;
-            font-size: 0.8rem;
+            width: 28px;
+            height: 28px;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            z-index: 5;
+        }
+
+        /* Botón de generar PDF abajo */
+        .floating-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(transparent, rgba(255,255,255,0.95) 40%, white);
+            z-index: 1000;
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <!-- UI de la Cámara -->
-    <div id="camera-container" class="d-flex justify-content-center align-items-center">
+    <!-- VISOR Y GUÍA DE CÁMARA -->
+    <div id="viewport-container">
+        <!-- Botón Cambio de Cámara -->
+        <button class="btn-switch-camera" id="btn-switch" title="Cambiar cámara">
+            <i class="bi bi-camera-reels"></i>
+        </button>
+
         <video id="video-feed" autoplay playsinline></video>
-        <div id="flash-overlay"></div>
-        <p id="camera-error" class="text-white position-absolute d-none text-center px-3">
-            No se pudo acceder a la cámara. Revisa los permisos.
-        </p>
+        
+        <!-- Guía A4 con zona oscura -->
+        <div id="scanner-guide">
+            <div class="corner-mark top-left"></div>
+            <div class="corner-mark top-right"></div>
+            <div class="corner-mark bottom-left"></div>
+            <div class="corner-mark bottom-right"></div>
+        </div>
+
+        <img id="photo-preview" alt="Vista previa recortada">
     </div>
 
-    <!-- Controles -->
-    <div class="container mt-3">
-        <div class="row g-2 mb-3">
-            <div class="col-12">
-                <button id="btn-capture" class="btn btn-primary w-100 py-3 fw-bold fs-5 shadow-sm">
-                    📸 Capturar Foto
-                </button>
-            </div>
-            <div class="col-12">
-                <button id="btn-finish" class="btn btn-success w-100 py-2 d-none shadow-sm">
-                    📄 Finalizar escaneado (<span id="photo-count">0</span>)
+    <!-- PANEL DE CONTROLES -->
+    <div class="controls-panel container">
+        <!-- Estado 1: Escaneando -->
+        <div id="state-scanning" class="row">
+            <div class="col-12 text-center">
+                <button id="btn-capture" class="btn btn-primary w-100 py-3 rounded-pill fw-bold fs-5 shadow">
+                    <i class="bi bi-camera me-2"></i> Capturar Documento
                 </button>
             </div>
         </div>
 
-        <!-- Galería (Sortable) -->
-        <div id="gallery" class="row g-2 pb-5">
-            <!-- Las miniaturas se inyectarán aquí -->
+        <!-- Estado 2: Revisando la captura -->
+        <div id="state-reviewing" class="row g-2 d-none">
+            <div class="col-6">
+                <button id="btn-retake" class="btn btn-outline-danger w-100 py-3 rounded-pill fw-bold">
+                    <i class="bi bi-x-circle"></i> Repetir
+                </button>
+            </div>
+            <div class="col-6">
+                <button id="btn-accept" class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow">
+                    <i class="bi bi-check-circle"></i> Guardar
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Canvas oculto para extraer el fotograma -->
+    <!-- GALERÍA DE FOTOS -->
+    <div class="container mt-4 pb-5">
+        <h6 class="text-muted mb-3 d-none" id="gallery-title">
+            <i class="bi bi-list-ol"></i> Mantén presionado y arrastra para reordenar
+        </h6>
+        <div id="gallery" class="row g-3">
+            <!-- Miniaturas inyectadas desde JS -->
+        </div>
+    </div>
+
+    <!-- BOTÓN FINALIZAR (Flotante) -->
+    <div class="floating-footer" id="finish-container">
+        <div class="container">
+            <button id="btn-finish" class="btn btn-dark w-100 py-3 rounded-pill fw-bold shadow-lg">
+                <i class="bi bi-file-pdf-fill me-2"></i> Generar PDF (<span id="photo-count">0</span>)
+            </button>
+        </div>
+    </div>
+
+    <!-- CANVAS OCULTO PARA PROCESAR EL RECORTE -->
     <canvas id="canvas" class="d-none"></canvas>
 
-    <!-- Modal de Confirmación -->
-    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <!-- MODAL FINAL -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Generar Documento</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p id="modal-text">¿Deseas generar el PDF con 0 fotografías?</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="btn-generate-pdf">Generar PDF</button>
+            <div class="modal-content border-0 shadow-lg text-center p-4">
+                <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 3rem;"></i>
+                <h5 class="fw-bold mt-3" id="modal-text">¿Generar documento?</h5>
+                <p class="text-muted small">Se creará un PDF en tamaño A4 con el orden seleccionado.</p>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-light w-50 rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-primary w-50 rounded-pill fw-bold" id="btn-generate-pdf">Generar</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Librerías Externas -->
+    <!-- LIBRERÍAS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Referencias al DOM
             const video = document.getElementById('video-feed');
+            const preview = document.getElementById('photo-preview');
+            const scannerGuide = document.getElementById('scanner-guide');
             const canvas = document.getElementById('canvas');
-            const context = canvas.getContext('2d');
-            const btnCapture = document.getElementById('btn-capture');
-            const btnFinish = document.getElementById('btn-finish');
-            const gallery = document.getElementById('gallery');
-            const photoCountSpan = document.getElementById('photo-count');
-            const flashOverlay = document.getElementById('flash-overlay');
-            const modalText = document.getElementById('modal-text');
-            const btnGeneratePdf = document.getElementById('btn-generate-pdf');
+            const ctx = canvas.getContext('2d');
             
-            // Instancia de Bootstrap Modal
+            const btnCapture = document.getElementById('btn-capture');
+            const btnRetake = document.getElementById('btn-retake');
+            const btnAccept = document.getElementById('btn-accept');
+            const btnSwitch = document.getElementById('btn-switch');
+            const btnFinish = document.getElementById('btn-finish');
+            
+            const stateScanning = document.getElementById('state-scanning');
+            const stateReviewing = document.getElementById('state-reviewing');
+            const gallery = document.getElementById('gallery');
+            const finishContainer = document.getElementById('finish-container');
             const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+            
+            let tempImageBase64 = null;
+            let stream = null;
+            let currentFacingMode = "environment"; // Inicia con cámara trasera
 
-            // 1. INICIALIZAR LA CÁMARA
-            async function initCamera() {
+            // 1. GESTIÓN DE CÁMARA
+            async function startCamera(facingMode) {
+                // Detener stream anterior si existe
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+
                 try {
-                    // Pedimos acceso a la cámara trasera (environment)
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment" },
+                    const constraints = {
+                        video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
                         audio: false
-                    });
+                    };
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
                     video.srcObject = stream;
                 } catch (err) {
-                    console.error("Error al acceder a la cámara: ", err);
-                    document.getElementById('camera-error').classList.remove('d-none');
-                    btnCapture.disabled = true;
+                    console.error("Error cámara:", err);
+                    alert("No se pudo acceder a la cámara seleccionada.");
                 }
             }
+            startCamera(currentFacingMode);
 
-            initCamera();
+            // Alternar Cámara (Frontal / Trasera)
+            btnSwitch.addEventListener('click', () => {
+                currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+                startCamera(currentFacingMode);
+            });
 
-            // 2. INICIALIZAR SORTABLE.JS (Arrastrar y soltar)
+            // 2. CONFIGURAR DRAG & DROP (Sortable)
             new Sortable(gallery, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
-                delay: 100, // Pequeño delay en móviles para diferenciar de un scroll
+                delay: 150, // Importante para móviles (evita que el scroll dispare el drag)
                 delayOnTouchOnly: true
             });
 
-            // 3. CAPTURAR FOTOGRAFÍA
+            // 3. LÓGICA DE RECORTE MATEMÁTICO (Cropping)
             btnCapture.addEventListener('click', () => {
-                // Ajustar el tamaño del canvas al tamaño real del video
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+                if (!video.videoWidth) return;
 
-                // Dibujar el fotograma actual del video en el canvas
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                // 1. Dimensiones nativas de la cámara
+                const vw = video.videoWidth;
+                const vh = video.videoHeight;
+                
+                // 2. Dimensiones del contenedor del video en pantalla
+                const cw = video.clientWidth;
+                const ch = video.clientHeight;
 
-                // Convertir el canvas a una imagen en Base64 (JPEG, calidad 80%)
-                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                // 3. Cálculo de la escala porque estamos usando "object-fit: cover"
+                const scale = Math.max(cw / vw, ch / vh);
+                
+                // Tamaño virtual del video extendido
+                const displayedWidth = vw * scale;
+                const displayedHeight = vh * scale;
 
-                // Feedback visual: Efecto Flash
-                flashOverlay.classList.remove('flash-animation');
-                void flashOverlay.offsetWidth; // Reflow forzado para reiniciar animación
-                flashOverlay.classList.add('flash-animation');
+                // Desfase (lo que queda oculto fuera del contenedor por el cover)
+                const offsetX = (displayedWidth - cw) / 2;
+                const offsetY = (displayedHeight - ch) / 2;
 
-                // Añadir imagen a la galería
-                addImageToGallery(imageDataUrl);
-                updateUI();
+                // 4. Coordenadas de la Guía A4 en pantalla
+                const guideRect = scannerGuide.getBoundingClientRect();
+                const containerRect = video.parentElement.getBoundingClientRect();
+                
+                // Posición de la guía relativa al contenedor
+                const gx = guideRect.left - containerRect.left;
+                const gy = guideRect.top - containerRect.top;
+
+                // 5. Traducción de pantalla a píxeles reales de la cámara
+                const cropX = (gx + offsetX) / scale;
+                const cropY = (gy + offsetY) / scale;
+                const cropW = guideRect.width / scale;
+                const cropH = guideRect.height / scale;
+
+                // 6. Recortar en el Canvas
+                canvas.width = cropW;
+                canvas.height = cropH;
+                ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+                // Obtener imagen recortada en calidad alta
+                tempImageBase64 = canvas.toDataURL('image/jpeg', 0.9);
+
+                // Interfaz de Revisión
+                preview.src = tempImageBase64;
+                preview.style.display = 'block';
+                scannerGuide.style.opacity = '0'; // Ocultamos guía
+                video.style.opacity = '0'; // Ocultamos video
+                btnSwitch.style.display = 'none';
+
+                stateScanning.classList.add('d-none');
+                stateReviewing.classList.remove('d-none');
             });
 
-            // Función para renderizar la miniatura en la cuadrícula
-            function addImageToGallery(dataUrl) {
+            // 4. REPETIR FOTO
+            btnRetake.addEventListener('click', () => {
+                tempImageBase64 = null;
+                preview.style.display = 'none';
+                scannerGuide.style.opacity = '1';
+                video.style.opacity = '1';
+                btnSwitch.style.display = 'flex';
+                
+                stateReviewing.classList.add('d-none');
+                stateScanning.classList.remove('d-none');
+            });
+
+            // 5. ACEPTAR Y GUARDAR EN GALERÍA
+            btnAccept.addEventListener('click', () => {
                 const col = document.createElement('div');
-                col.className = 'col-4 col-sm-3 col-md-2';
+                col.className = 'col-6 col-sm-4 col-md-3'; // 2 fotos por fila en móvil
                 
                 col.innerHTML = `
                     <div class="gallery-item">
-                        <img src="${dataUrl}" class="captured-img" alt="Documento escaneado">
-                        <button class="btn btn-danger btn-delete-img">&times;</button>
+                        <button class="btn-delete"><i class="bi bi-x"></i></button>
+                        <img src="${tempImageBase64}" class="scanned-img">
                     </div>
                 `;
 
-                // Evento para eliminar la foto
-                col.querySelector('.btn-delete-img').addEventListener('click', function() {
+                // Eliminar foto
+                col.querySelector('.btn-delete').addEventListener('click', () => {
                     col.remove();
-                    updateUI();
+                    updateCount();
                 });
 
                 gallery.appendChild(col);
-            }
+                
+                btnRetake.click(); // Resetear UI de cámara
+                updateCount();
+            });
 
-            // Actualiza contadores y visibilidad del botón finalizar
-            function updateUI() {
-                const count = gallery.querySelectorAll('.captured-img').length;
-                photoCountSpan.textContent = count;
-
+            function updateCount() {
+                const count = gallery.querySelectorAll('.scanned-img').length;
+                document.getElementById('photo-count').textContent = count;
+                
                 if (count > 0) {
-                    btnFinish.classList.remove('d-none');
+                    finishContainer.style.display = 'block';
+                    document.getElementById('gallery-title').classList.remove('d-none');
                 } else {
-                    btnFinish.classList.add('d-none');
+                    finishContainer.style.display = 'none';
+                    document.getElementById('gallery-title').classList.add('d-none');
                 }
             }
 
-            // 4. FINALIZAR ESCANEADO (Abrir Modal)
+            // 6. GENERAR PDF
             btnFinish.addEventListener('click', () => {
-                const count = gallery.querySelectorAll('.captured-img').length;
-                modalText.textContent = `¿Deseas generar el PDF con ${count} fotografí${count === 1 ? 'a' : 'as'}?`;
                 confirmModal.show();
             });
 
-            // 5. GENERAR PDF CON jsPDF
-            btnGeneratePdf.addEventListener('click', () => {
-                // Recuperar las imágenes de la galería en su orden actual (modificable por SortableJS)
-                const images = Array.from(gallery.querySelectorAll('.captured-img')).map(img => img.src);
+            document.getElementById('btn-generate-pdf').addEventListener('click', () => {
+                const btnGen = document.getElementById('btn-generate-pdf');
+                btnGen.textContent = "Procesando...";
                 
-                if (images.length === 0) return;
+                setTimeout(() => {
+                    const images = Array.from(gallery.querySelectorAll('.scanned-img')).map(img => img.src);
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF('p', 'mm', 'a4'); // Forzar PDF a A4
 
-                const { jsPDF } = window.jspdf;
-                // Formato 'p' (portrait), milímetros, tamaño 'a4'
-                const doc = new jsPDF('p', 'mm', 'a4');
-                
-                const pdfWidth = doc.internal.pageSize.getWidth();
-                const pdfHeight = doc.internal.pageSize.getHeight();
+                    // Dimensiones A4
+                    const pdfWidth = doc.internal.pageSize.getWidth();
+                    const pdfHeight = doc.internal.pageSize.getHeight();
 
-                images.forEach((imgData, index) => {
-                    // Si no es la primera imagen, añadimos una nueva página
-                    if (index > 0) {
-                        doc.addPage();
-                    }
+                    images.forEach((imgData, index) => {
+                        if (index > 0) doc.addPage();
+                        // Como la foto ya fue recortada matemáticamente a proporción 1:1.414, 
+                        // encajará perfectamente en el PDF sin dejar bordes blancos.
+                        doc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    });
 
-                    // Calculamos proporciones para encajar la imagen en el A4
-                    const imgProps = doc.getImageProperties(imgData);
-                    let finalWidth = pdfWidth;
-                    let finalHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-                    // Si la imagen es más alta que la página, ajustamos por la altura
-                    if (finalHeight > pdfHeight) {
-                        finalHeight = pdfHeight;
-                        finalWidth = (imgProps.width * pdfHeight) / imgProps.height;
-                    }
-
-                    // Centrar la imagen en la página (opcional, en un escáner suele ponerse desde arriba)
-                    const x = (pdfWidth - finalWidth) / 2;
-                    const y = (pdfHeight - finalHeight) / 2;
-
-                    doc.addImage(imgData, 'JPEG', x, y, finalWidth, finalHeight);
-                });
-
-                // Cerrar el modal
-                confirmModal.hide();
-
-                // 6. VISUALIZAR / DESCARGAR PDF
-                // En móviles, abrir un Blob URL a veces es bloqueado o no se ve bien.
-                // Guardarlo forzando la descarga suele ser la opción más compatible en Android/iOS.
-                try {
                     doc.save('Documento_Escaneado.pdf');
-                } catch (e) {
-                    // Fallback: intentar abrir en nueva pestaña
-                    const pdfOutput = doc.output('bloburl');
-                    window.open(pdfOutput, '_blank');
-                }
+
+                    btnGen.textContent = "Generar";
+                    confirmModal.hide();
+                }, 150);
             });
         });
     </script>

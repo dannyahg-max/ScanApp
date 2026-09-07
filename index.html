@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Escáner de Documentos Web</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            touch-action: manipulation; /* Evita zoom accidental en móviles */
+        }
+        
+        /* Contenedor de la cámara */
+        #camera-container {
+            position: relative;
+            width: 100%;
+            max-height: 50vh;
+            background-color: #000;
+            overflow: hidden;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        #video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Asegura que el video llene el contenedor sin deformarse */
+        }
+
+        /* Efecto de flash al tomar la foto */
+        #flash-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .flash-animation {
+            animation: flashAnim 0.3s ease-out;
+        }
+
+        @keyframes flashAnim {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Cuadrícula de fotos */
+        .gallery-item {
+            position: relative;
+            cursor: grab;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            background-color: #fff;
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Estilo para el elemento que está siendo arrastrado por SortableJS */
+        .sortable-ghost {
+            opacity: 0.4;
+            border: 2px dashed #0d6efd;
+        }
+
+        /* Botón de eliminar sobre la miniatura */
+        .btn-delete-img {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            border-radius: 50%;
+            padding: 0.1rem 0.3rem;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- UI de la Cámara -->
+    <div id="camera-container" class="d-flex justify-content-center align-items-center">
+        <video id="video-feed" autoplay playsinline></video>
+        <div id="flash-overlay"></div>
+        <p id="camera-error" class="text-white position-absolute d-none text-center px-3">
+            No se pudo acceder a la cámara. Revisa los permisos.
+        </p>
+    </div>
+
+    <!-- Controles -->
+    <div class="container mt-3">
+        <div class="row g-2 mb-3">
+            <div class="col-12">
+                <button id="btn-capture" class="btn btn-primary w-100 py-3 fw-bold fs-5 shadow-sm">
+                    📸 Capturar Foto
+                </button>
+            </div>
+            <div class="col-12">
+                <button id="btn-finish" class="btn btn-success w-100 py-2 d-none shadow-sm">
+                    📄 Finalizar escaneado (<span id="photo-count">0</span>)
+                </button>
+            </div>
+        </div>
+
+        <!-- Galería (Sortable) -->
+        <div id="gallery" class="row g-2 pb-5">
+            <!-- Las miniaturas se inyectarán aquí -->
+        </div>
+    </div>
+
+    <!-- Canvas oculto para extraer el fotograma -->
+    <canvas id="canvas" class="d-none"></canvas>
+
+    <!-- Modal de Confirmación -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generar Documento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="modal-text">¿Deseas generar el PDF con 0 fotografías?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btn-generate-pdf">Generar PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Librerías Externas -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Referencias al DOM
+            const video = document.getElementById('video-feed');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            const btnCapture = document.getElementById('btn-capture');
+            const btnFinish = document.getElementById('btn-finish');
+            const gallery = document.getElementById('gallery');
+            const photoCountSpan = document.getElementById('photo-count');
+            const flashOverlay = document.getElementById('flash-overlay');
+            const modalText = document.getElementById('modal-text');
+            const btnGeneratePdf = document.getElementById('btn-generate-pdf');
+            
+            // Instancia de Bootstrap Modal
+            const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+
+            // 1. INICIALIZAR LA CÁMARA
+            async function initCamera() {
+                try {
+                    // Pedimos acceso a la cámara trasera (environment)
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "environment" },
+                        audio: false
+                    });
+                    video.srcObject = stream;
+                } catch (err) {
+                    console.error("Error al acceder a la cámara: ", err);
+                    document.getElementById('camera-error').classList.remove('d-none');
+                    btnCapture.disabled = true;
+                }
+            }
+
+            initCamera();
+
+            // 2. INICIALIZAR SORTABLE.JS (Arrastrar y soltar)
+            new Sortable(gallery, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                delay: 100, // Pequeño delay en móviles para diferenciar de un scroll
+                delayOnTouchOnly: true
+            });
+
+            // 3. CAPTURAR FOTOGRAFÍA
+            btnCapture.addEventListener('click', () => {
+                // Ajustar el tamaño del canvas al tamaño real del video
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                // Dibujar el fotograma actual del video en el canvas
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Convertir el canvas a una imagen en Base64 (JPEG, calidad 80%)
+                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+                // Feedback visual: Efecto Flash
+                flashOverlay.classList.remove('flash-animation');
+                void flashOverlay.offsetWidth; // Reflow forzado para reiniciar animación
+                flashOverlay.classList.add('flash-animation');
+
+                // Añadir imagen a la galería
+                addImageToGallery(imageDataUrl);
+                updateUI();
+            });
+
+            // Función para renderizar la miniatura en la cuadrícula
+            function addImageToGallery(dataUrl) {
+                const col = document.createElement('div');
+                col.className = 'col-4 col-sm-3 col-md-2';
+                
+                col.innerHTML = `
+                    <div class="gallery-item">
+                        <img src="${dataUrl}" class="captured-img" alt="Documento escaneado">
+                        <button class="btn btn-danger btn-delete-img">&times;</button>
+                    </div>
+                `;
+
+                // Evento para eliminar la foto
+                col.querySelector('.btn-delete-img').addEventListener('click', function() {
+                    col.remove();
+                    updateUI();
+                });
+
+                gallery.appendChild(col);
+            }
+
+            // Actualiza contadores y visibilidad del botón finalizar
+            function updateUI() {
+                const count = gallery.querySelectorAll('.captured-img').length;
+                photoCountSpan.textContent = count;
+
+                if (count > 0) {
+                    btnFinish.classList.remove('d-none');
+                } else {
+                    btnFinish.classList.add('d-none');
+                }
+            }
+
+            // 4. FINALIZAR ESCANEADO (Abrir Modal)
+            btnFinish.addEventListener('click', () => {
+                const count = gallery.querySelectorAll('.captured-img').length;
+                modalText.textContent = `¿Deseas generar el PDF con ${count} fotografí${count === 1 ? 'a' : 'as'}?`;
+                confirmModal.show();
+            });
+
+            // 5. GENERAR PDF CON jsPDF
+            btnGeneratePdf.addEventListener('click', () => {
+                // Recuperar las imágenes de la galería en su orden actual (modificable por SortableJS)
+                const images = Array.from(gallery.querySelectorAll('.captured-img')).map(img => img.src);
+                
+                if (images.length === 0) return;
+
+                const { jsPDF } = window.jspdf;
+                // Formato 'p' (portrait), milímetros, tamaño 'a4'
+                const doc = new jsPDF('p', 'mm', 'a4');
+                
+                const pdfWidth = doc.internal.pageSize.getWidth();
+                const pdfHeight = doc.internal.pageSize.getHeight();
+
+                images.forEach((imgData, index) => {
+                    // Si no es la primera imagen, añadimos una nueva página
+                    if (index > 0) {
+                        doc.addPage();
+                    }
+
+                    // Calculamos proporciones para encajar la imagen en el A4
+                    const imgProps = doc.getImageProperties(imgData);
+                    let finalWidth = pdfWidth;
+                    let finalHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                    // Si la imagen es más alta que la página, ajustamos por la altura
+                    if (finalHeight > pdfHeight) {
+                        finalHeight = pdfHeight;
+                        finalWidth = (imgProps.width * pdfHeight) / imgProps.height;
+                    }
+
+                    // Centrar la imagen en la página (opcional, en un escáner suele ponerse desde arriba)
+                    const x = (pdfWidth - finalWidth) / 2;
+                    const y = (pdfHeight - finalHeight) / 2;
+
+                    doc.addImage(imgData, 'JPEG', x, y, finalWidth, finalHeight);
+                });
+
+                // Cerrar el modal
+                confirmModal.hide();
+
+                // 6. VISUALIZAR / DESCARGAR PDF
+                // En móviles, abrir un Blob URL a veces es bloqueado o no se ve bien.
+                // Guardarlo forzando la descarga suele ser la opción más compatible en Android/iOS.
+                try {
+                    doc.save('Documento_Escaneado.pdf');
+                } catch (e) {
+                    // Fallback: intentar abrir en nueva pestaña
+                    const pdfOutput = doc.output('bloburl');
+                    window.open(pdfOutput, '_blank');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

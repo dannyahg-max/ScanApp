@@ -1,126 +1,250 @@
-
+/* ==========================================================================
+   VARIABLES GLOBALES Y TEMA
+   ========================================================================== */
 :root {
-    --bg-color: #f5f6f8;
     --primary: #0d6efd;
-    --header-h: 60px;
-    --footer-h: 120px;
+    --danger: #dc3545;
+    --success: #198754;
+    --dark-bg: #121212;
+    --guide-mask: rgba(0, 0, 0, 0.75); /* Oscurece el exterior del escáner */
+    --footer-height-mobile: 110px;
+    --footer-height-desktop: 90px;
 }
 
+/* ==========================================================================
+   AJUSTES BASE Y UTILIDADES
+   ========================================================================== */
 body {
-    background-color: #e4e5f1; /* Fondo para PC */
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    touch-action: manipulation;
-}
-
-.app-container {
-    max-width: 450px;
-    margin: 0 auto;
-    height: 100vh;
-    background-color: var(--bg-color);
-    position: relative;
-    box-shadow: 0 0 30px rgba(0,0,0,0.1);
-    display: flex;
-    flex-direction: column;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    touch-action: manipulation; /* Evita zooms accidentales por doble toque en móviles */
+    background-color: #f8f9fa;
+    /* Espacio vital en el fondo para que el Footer Fijo no tape la última fila de la galería */
+    padding-bottom: var(--footer-height-mobile); 
     overflow-x: hidden;
 }
 
-/* HEADER */
-.app-header {
-    height: var(--header-h);
-    background: #fff;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    z-index: 50;
+@media (min-width: 768px) {
+    body { 
+        padding-bottom: var(--footer-height-desktop); 
+    }
 }
 
-/* AREA DE TRABAJO CON SCROLL */
-.content-area {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 20px;
-    padding-bottom: var(--footer-h);
+.cursor-pointer {
+    cursor: pointer;
 }
 
-/* CAMARA (Superpuesta cuando se activa) */
-.camera-section {
-    position: absolute;
-    top: var(--header-h); left: 0;
-    width: 100%; height: calc(100vh - var(--header-h));
-    background: #000;
-    z-index: 40;
-    overflow: hidden;
+/* ==========================================================================
+   VISOR DE CÁMARA (Responsive)
+   ========================================================================== */
+.camera-wrapper {
+    /* En PC limitamos el ancho para que no parezca un cine, en móvil ocupa todo */
+    max-width: 600px;
+    width: 100%;
 }
 
-.btn-close-cam {
-    position: absolute;
-    top: 15px; left: 15px;
-    z-index: 50;
-    background: rgba(255,255,255,0.2); color: white;
-    border: none; border-radius: 20px;
-    padding: 8px 15px; font-weight: bold;
-    backdrop-filter: blur(5px);
+.camera-container {
+    width: 100%;
+    /* Altura dinámica: 65% de la pantalla en móvil, tope de 600px en PC */
+    height: 65vh;
+    max-height: 600px;
+    background-color: var(--dark-bg);
+    border-radius: 1rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
 #video-feed, #photo-preview {
-    width: 100%; height: 100%; object-fit: cover;
-    position: absolute; top: 0; left: 0;
-}
-
-#scanner-guide {
-    position: absolute; top: 45%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 75%; aspect-ratio: 1 / 1.414;
-    box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6);
-    z-index: 5; pointer-events: none;
-}
-.corner { position: absolute; width: 30px; height: 30px; border-color: #fff; border-style: solid; border-width: 0; }
-.top-left { top:-2px; left:-2px; border-top-width:3px; border-left-width:3px; }
-.top-right { top:-2px; right:-2px; border-top-width:3px; border-right-width:3px; }
-.bottom-left { bottom:-2px; left:-2px; border-bottom-width:3px; border-left-width:3px; }
-.bottom-right { bottom:-2px; right:-2px; border-bottom-width:3px; border-right-width:3px; }
-
-.camera-controls {
-    position: absolute; bottom: 30px; width: 100%; z-index: 15;
-    display: flex; justify-content: space-around; align-items: center;
-}
-.icon-btn { width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; font-size: 1.5rem; display: flex; justify-content: center; align-items: center; cursor: pointer; }
-.capture-btn { width: 75px; height: 75px; border-radius: 50%; background: white; border: 6px solid rgba(255,255,255,0.5); cursor: pointer; background-clip: padding-box; }
-
-/* GALERÍA */
-.gallery-item { position: relative; background: #fff; border-radius: 8px; padding: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); cursor: grab; aspect-ratio: 1/1.414; }
-.gallery-item img { width: 100%; height: 100%; object-fit: contain; border-radius: 4px; }
-.sortable-ghost { opacity: 0.4; border: 2px dashed var(--primary); }
-.page-badge { position: absolute; bottom: 5px; left: 5px; background: rgba(0,0,0,0.7); color: white; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: bold; }
-.btn-delete { position: absolute; top: -8px; right: -8px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 26px; height: 26px; font-size: 12px; z-index: 5; }
-
-/* FOOTER INFERIOR */
-.action-footer {
-    position: absolute; bottom: 0; left: 0; width: 100%;
-    padding: 15px 20px 25px 20px;
-    background: #fff;
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -5px 20px rgba(0,0,0,0.08);
-    z-index: 30;
-}
-
-/* OVERLAY */
-#loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
-#video-feed {
-    z-index: 1; /* El video va al fondo */
-}
-
-#scanner-guide {
-    z-index: 5; /* La guía transparente va arriba del video */
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1; /* El video queda al fondo */
 }
 
 #photo-preview {
-    z-index: 10; /* La foto capturada tapa al video y a la guía */
+    z-index: 10; /* La foto capturada tapa al video y la máscara */
 }
 
+/* ==========================================================================
+   MÁSCARA Y GUÍA DE ESCANEO A4/CARTA
+   ========================================================================== */
+#scanner-guide {
+    position: absolute;
+    top: 45%; /* Subido ligeramente para dar espacio a los botones inferiores */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 75%;
+    max-width: 380px;
+    aspect-ratio: 1 / 1.414; /* Proporción matemática internacional del papel A4 */
+    /* El truco mágico: una sombra gigante que oscurece el exterior */
+    box-shadow: 0 0 0 2000px var(--guide-mask);
+    z-index: 5;
+    pointer-events: none; /* Los toques pasan a través de la máscara */
+    transition: opacity 0.3s ease;
+}
+
+/* Marcas de las 4 esquinas */
+.corner {
+    position: absolute;
+    width: 35px;
+    height: 35px;
+    border-color: #ffffff;
+    border-style: solid;
+    border-width: 0;
+    box-shadow: 0 0 8px rgba(0,0,0,0.3); /* Hace que las marcas resalten sobre hojas blancas */
+}
+
+.top-left { top: -2px; left: -2px; border-top-width: 4px; border-left-width: 4px; border-top-left-radius: 8px; }
+.top-right { top: -2px; right: -2px; border-top-width: 4px; border-right-width: 4px; border-top-right-radius: 8px; }
+.bottom-left { bottom: -2px; left: -2px; border-bottom-width: 4px; border-left-width: 4px; border-bottom-left-radius: 8px; }
+.bottom-right { bottom: -2px; right: -2px; border-bottom-width: 4px; border-right-width: 4px; border-bottom-right-radius: 8px; }
+
+/* ==========================================================================
+   BOTONES SOBRE LA CÁMARA (Estilo iOS / Glassmorphism)
+   ========================================================================== */
 .camera-controls {
-    z-index: 15; /* Los botones de tomar foto van por encima de todo */
+    z-index: 15;
+}
+
+.icon-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    font-size: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Efecto cristal */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.icon-btn:active {
+    transform: scale(0.9);
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.capture-btn {
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+    background: white;
+    border: 6px solid rgba(255, 255, 255, 0.4);
+    background-clip: padding-box;
+    transition: transform 0.1s ease;
+}
+
+.capture-btn:active {
+    transform: scale(0.9);
+}
+
+.btn-action {
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   GALERÍA DE PÁGINAS (Sortable Grid)
+   ========================================================================== */
+.gallery-item {
+    position: relative;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    cursor: grab;
+    aspect-ratio: 1 / 1.414; /* Mantiene la proporción en la galería */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gallery-item:active {
+    cursor: grabbing;
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Garantiza que la imagen no se mutile en la vista previa */
+    background-color: #f1f3f5;
+    border-radius: 6px;
+}
+
+/* Efecto visual al arrastrar (SortableJS) */
+.sortable-ghost {
+    opacity: 0.4;
+    transform: scale(0.95);
+    border: 2px dashed var(--primary);
+    background: rgba(13, 110, 253, 0.05);
+    box-shadow: none;
+}
+
+/* Etiqueta de Página (Pág 1, Pág 2...) */
+.page-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 700;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* Botón de Borrar Página */
+.btn-delete {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4);
+    z-index: 5;
+    transition: transform 0.2s;
+}
+
+.btn-delete:hover {
+    transform: scale(1.15);
+}
+
+/* ==========================================================================
+   PANTALLA DE CARGA (Overlay Bloqueante)
+   ========================================================================== */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 9999; /* Máxima prioridad visual */
+    display: none; /* JS cambia esto a display: flex */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Animaciones suaves para ventanas modales */
+.fade {
+    transition: opacity 0.2s linear;
 }

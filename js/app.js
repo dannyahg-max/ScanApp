@@ -66,35 +66,53 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btn-finish').addEventListener('click', () => this.DOM.settingsModal.show());
             this.DOM.btnGeneratePdf.addEventListener('click', () => this.generatePDF());
         },
-
-        // --- 2. GESTIÓN DE CÁMARA ---
+// 2.- Apertura de Cámara
 async openCamera() {
             this.DOM.homeState.classList.add('d-none');
             this.DOM.camSection.classList.remove('d-none');
             
+            // 1. Intentamos forzar Alta Resolución y Cámara Trasera/Frontal específica
+            let constraints = {
+                video: { facingMode: this.currentFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                audio: false
+            };
+
             try {
-                this.stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: this.currentFacingMode, 
-                        width: { ideal: 1920 }, 
-                        height: { ideal: 1080 } 
-                    },
-                    audio: false
-                });
+                this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (err1) {
+                console.warn("Fallo con alta resolución, intentando configuración básica...", err1);
                 
+                try {
+                    // 2. Fallback: Calidad que el navegador decida, pero manteniendo trasera/frontal
+                    constraints = { video: { facingMode: this.currentFacingMode }, audio: false };
+                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (err2) {
+                    console.warn("Fallo con configuración básica, intentando cualquier cámara...", err2);
+                    
+                    try {
+                        // 3. Fallback final: Enciende CUALQUIER cámara disponible a cualquier resolución
+                        this.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    } catch (err3) {
+                        // Si falla aquí, mostramos el error exacto en pantalla para saber qué pasa
+                        alert(`Error de cámara: ${err3.name}\n${err3.message}\n\nAsegúrate de dar permisos y de estar en un sitio seguro (HTTPS o localhost).`);
+                        this.closeCamera();
+                        return; // Detenemos la ejecución
+                    }
+                }
+            }
+
+            // Si llegamos hasta aquí, logramos capturar una cámara exitosamente
+            if (this.stream) {
                 this.DOM.video.srcObject = this.stream;
                 
-                // IMPORTANTE: Forzar la reproducción para evitar pantalla en blanco en móviles
+                // Forzamos la reproducción en móviles para evitar pantallas negras o blancas
                 this.DOM.video.onloadedmetadata = () => {
-                    this.DOM.video.play().catch(e => console.error("Error al forzar el play:", e));
+                    this.DOM.video.play().catch(e => {
+                        console.error("Error al reproducir el video:", e);
+                    });
                 };
-
-            } catch (err) {
-                console.error("Error de cámara:", err);
-                alert("No se pudo iniciar la cámara. Verifica los permisos del navegador o recarga la página.");
-                this.closeCamera();
             }
-        },,
+        },
 
         closeCamera() {
             if (this.stream) {

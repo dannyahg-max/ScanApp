@@ -109,3 +109,18 @@ body {
 
 /* OVERLAY */
 #loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
+#video-feed {
+    z-index: 1; /* El video va al fondo */
+}
+
+#scanner-guide {
+    z-index: 5; /* La guía transparente va arriba del video */
+}
+
+#photo-preview {
+    z-index: 10; /* La foto capturada tapa al video y a la guía */
+}
+
+.camera-controls {
+    z-index: 15; /* Los botones de tomar foto van por encima de todo */
+}

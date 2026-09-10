@@ -64,29 +64,31 @@
                     <i class="bi bi-x-circle me-1"></i> Cerrar
                 </button>
 
-                <!-- Feed de Video y Máscara -->
+                <!-- Feed de Video -->
                 <!-- IMPORTANTE: Atributo muted obligatorio para iOS/Android -->
                 <video id="video-feed" autoplay playsinline muted></video>
                 
-                <div id="scanner-guide">
+                <!-- Guía y Vista Previa: Ambas comparten "guide-bounds" para medir exactamente lo mismo -->
+                <div id="scanner-guide" class="guide-bounds">
                     <div class="corner top-left"></div>
                     <div class="corner top-right"></div>
                     <div class="corner bottom-left"></div>
                     <div class="corner bottom-right"></div>
                 </div>
-                <img id="photo-preview" alt="Vista previa recortada" class="d-none">
+                
+                <img id="photo-preview" alt="Vista previa recortada" class="guide-bounds d-none">
                 
                 <!-- Controles: Escaneando -->
-                <div class="camera-controls w-100 position-absolute bottom-0 p-3 p-md-4 d-flex justify-content-center align-items-center gap-4 z-3" id="controls-capture">
-                    <button class="icon-btn btn-action" id="btn-switch" title="Cambiar cámara"><i class="bi bi-arrow-repeat"></i></button>
+                <div class="camera-controls w-100 position-absolute bottom-0 p-3 p-md-4 d-flex justify-content-center align-items-center gap-4" id="controls-capture">
+                    <button class="icon-btn btn-action shadow" id="btn-switch" title="Cambiar cámara"><i class="bi bi-arrow-repeat"></i></button>
                     <button class="capture-btn shadow-lg" id="btn-capture"></button>
-                    <div style="width: 50px;"></div> <!-- Espaciador para centrar el obturador -->
+                    <div style="width: 55px;"></div> <!-- Espaciador para centrar el obturador -->
                 </div>
 
-                <!-- Controles: Revisión de Foto -->
-                <div class="camera-controls w-100 position-absolute bottom-0 p-3 p-md-4 d-flex justify-content-center align-items-center gap-4 z-3 d-none" id="controls-review">
-                    <button class="icon-btn bg-danger text-white border-0 btn-action" id="btn-retake" title="Descartar"><i class="bi bi-trash3-fill"></i></button>
-                    <button class="icon-btn bg-success text-white border-0 btn-action" id="btn-accept" title="Guardar"><i class="bi bi-check-lg"></i></button>
+                <!-- Controles: Revisión de Foto (Sin clases z-3 problemáticas) -->
+                <div class="camera-controls w-100 position-absolute bottom-0 p-3 p-md-4 d-flex justify-content-center align-items-center gap-4 d-none" id="controls-review">
+                    <button class="icon-btn bg-danger text-white border-0 btn-action shadow" id="btn-retake" title="Descartar"><i class="bi bi-trash3-fill"></i></button>
+                    <button class="icon-btn bg-success text-white border-0 btn-action shadow" id="btn-accept" title="Guardar"><i class="bi bi-check-lg"></i></button>
                 </div>
             </div>
         </section>
@@ -104,7 +106,7 @@
             
             <!-- Botón extra para añadir más -->
             <div class="text-center mt-4 mb-5 pb-5 pb-md-0">
-                <button class="btn btn-outline-primary rounded-pill fw-bold" onclick="document.getElementById('file-upload').click()">
+                <button class="btn btn-outline-primary rounded-pill fw-bold shadow-sm" onclick="document.getElementById('file-upload').click()">
                     <i class="bi bi-plus-circle me-1"></i> Añadir más páginas
                 </button>
             </div>
@@ -117,9 +119,9 @@
         <div class="container-fluid p-0 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
             <div class="text-center text-md-start w-100">
                 <span class="fw-bold text-dark d-block d-md-inline me-md-3 mb-1 mb-md-0">Estado del documento:</span>
-                <span id="page-counter" class="badge bg-primary rounded-pill fs-6 px-3">0 / 20 Páginas</span>
+                <span id="page-counter" class="badge bg-primary rounded-pill fs-6 px-3 shadow-sm">0 / 20 Páginas</span>
             </div>
-            <button id="btn-finish" class="btn btn-danger btn-lg rounded-pill fw-bold w-100 w-md-auto px-md-5 shadow-sm">
+            <button id="btn-finish" class="btn btn-danger btn-lg rounded-pill fw-bold w-100 w-md-auto px-md-5 shadow">
                 <i class="bi bi-magic me-2"></i> Crear PDF
             </button>
         </div>

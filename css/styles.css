@@ -34,7 +34,7 @@ body {
 }
 
 /* ==========================================================================
-   VISOR DE CÁMARA (Responsive)
+   VISOR DE CÁMARA Y CONTENEDORES (Responsive)
    ========================================================================== */
 .camera-wrapper {
     /* En PC limitamos el ancho para que no parezca un cine, en móvil ocupa todo */
@@ -52,36 +52,44 @@ body {
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
 
-#video-feed, #photo-preview {
+#video-feed {
     width: 100%;
     height: 100%;
     object-fit: cover;
     position: absolute;
     top: 0;
     left: 0;
-    z-index: 1; /* El video queda al fondo */
-}
-
-#photo-preview {
-    z-index: 10; /* La foto capturada tapa al video y la máscara */
+    z-index: 1; /* El video queda al fondo de todo */
 }
 
 /* ==========================================================================
-   MÁSCARA Y GUÍA DE ESCANEO A4/CARTA
+   MÁSCARA, GUÍA DE ESCANEO Y VISTA PREVIA
    ========================================================================== */
-#scanner-guide {
+/* CLASE MAESTRA: Fuerza a que la guía y la foto final midan exactamente lo mismo */
+.guide-bounds {
     position: absolute;
-    top: 45%; /* Subido ligeramente para dar espacio a los botones inferiores */
+    top: 42%; /* Subido ligeramente para dar espacio a los botones inferiores */
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 75%;
-    max-width: 380px;
+    width: 70%;
+    max-width: 340px;
     aspect-ratio: 1 / 1.414; /* Proporción matemática internacional del papel A4 */
+}
+
+#scanner-guide {
     /* El truco mágico: una sombra gigante que oscurece el exterior */
     box-shadow: 0 0 0 2000px var(--guide-mask);
     z-index: 5;
     pointer-events: none; /* Los toques pasan a través de la máscara */
     transition: opacity 0.3s ease;
+}
+
+#photo-preview {
+    object-fit: cover;
+    z-index: 10; /* Se coloca SOBRE la guía y SOBRE el video */
+    border-radius: 8px;
+    /* Al mostrarse la foto, este shadow oscuro tapa la cámara viva por completo */
+    box-shadow: 0 0 0 2000px var(--dark-bg); 
 }
 
 /* Marcas de las 4 esquinas */
@@ -104,12 +112,12 @@ body {
    BOTONES SOBRE LA CÁMARA (Estilo iOS / Glassmorphism)
    ========================================================================== */
 .camera-controls {
-    z-index: 15;
+    z-index: 20 !important; /* Fuerza a los controles a estar SIEMPRE arriba de todo (soluciona el bug visual) */
 }
 
 .icon-btn {
-    width: 50px;
-    height: 50px;
+    width: 55px; /* Tamaño ideal para tocar con el pulgar */
+    height: 55px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.4);
@@ -157,7 +165,7 @@ body {
     padding: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     cursor: grab;
-    aspect-ratio: 1 / 1.414; /* Mantiene la proporción en la galería */
+    aspect-ratio: 1 / 1.414; /* Mantiene la proporción A4 en la galería */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -244,7 +252,7 @@ body {
     align-items: center;
 }
 
-/* Animaciones suaves para ventanas modales */
+/* Animaciones suaves para ventanas modales de Bootstrap */
 .fade {
     transition: opacity 0.2s linear;
 }

@@ -1,6 +1,6 @@
 /**
- * Scanner PDF Pro - Lógica Principal
- * Arquitectura modular ES6
+ * Scanner PDF Pro - Lógica Principal Integrada
+ * Arquitectura modular ES6 a prueba de fallos
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,13 +15,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- REFERENCIAS AL DOM ---
         DOM: {
-            // Secciones
+            // Secciones principales
             homeState: document.getElementById('home-state'),
             camSection: document.getElementById('camera-section'),
             galSection: document.getElementById('gallery-section'),
             footer: document.getElementById('action-footer'),
             
-            // Cámara y UI
+            // Cámara, UI y Recorte
             video: document.getElementById('video-feed'),
             preview: document.getElementById('photo-preview'),
             guide: document.getElementById('scanner-guide'),
@@ -30,21 +30,21 @@ document.addEventListener('DOMContentLoaded', () => {
             controlsCapture: document.getElementById('controls-capture'),
             controlsReview: document.getElementById('controls-review'),
             
-            // Galería y Carga
+            // Galería y Archivos
             gallery: document.getElementById('gallery'),
             fileUpload: document.getElementById('file-upload'),
             loadingOverlay: document.getElementById('loading-overlay'),
             loadingText: document.getElementById('loading-text'),
             pageCounter: document.getElementById('page-counter'),
             
-            // Modal de Exportación
+            // Modal y Exportación
             settingsModal: new bootstrap.Modal(document.getElementById('settingsModal')),
             formatSelect: document.getElementById('doc-format'),
             filenameInput: document.getElementById('pdf-filename'),
             btnGeneratePdf: document.getElementById('btn-generate-pdf')
         },
 
-        // --- 1. INICIALIZACIÓN ---
+        // --- 1. INICIALIZACIÓN DE EVENTOS ---
         init() {
             this.bindEvents();
             this.initSortable();
@@ -59,19 +59,24 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btn-retake').addEventListener('click', () => this.resetCameraUI());
             document.getElementById('btn-accept').addEventListener('click', () => this.acceptPhoto());
 
-            // Eventos de Importación
+            // Eventos de Importación (Botón alterno y subida de archivos)
+            const btnImportAlternative = document.getElementById('btn-import');
+            if(btnImportAlternative) {
+                btnImportAlternative.addEventListener('click', () => this.DOM.fileUpload.click());
+            }
             this.DOM.fileUpload.addEventListener('change', (e) => this.handleFileUpload(e));
 
             // Eventos de Generación PDF
             document.getElementById('btn-finish').addEventListener('click', () => this.DOM.settingsModal.show());
             this.DOM.btnGeneratePdf.addEventListener('click', () => this.generatePDF());
         },
-// 2.- Apertura de Cámara
-async openCamera() {
+
+        // --- 2. GESTIÓN PROFESIONAL DE CÁMARA (FALLBACKS) ---
+        async openCamera() {
             this.DOM.homeState.classList.add('d-none');
             this.DOM.camSection.classList.remove('d-none');
             
-            // 1. Intentamos forzar Alta Resolución y Cámara Trasera/Frontal específica
+            // INTENTO 1: Forzar Alta Resolución y Cámara Trasera/Frontal específica
             let constraints = {
                 video: { facingMode: this.currentFacingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
                 audio: false
@@ -83,33 +88,31 @@ async openCamera() {
                 console.warn("Fallo con alta resolución, intentando configuración básica...", err1);
                 
                 try {
-                    // 2. Fallback: Calidad que el navegador decida, pero manteniendo trasera/frontal
+                    // INTENTO 2: Calidad automática, manteniendo orientación
                     constraints = { video: { facingMode: this.currentFacingMode }, audio: false };
                     this.stream = await navigator.mediaDevices.getUserMedia(constraints);
                 } catch (err2) {
-                    console.warn("Fallo con configuración básica, intentando cualquier cámara...", err2);
+                    console.warn("Fallo con configuración básica, encendiendo cualquier cámara...", err2);
                     
                     try {
-                        // 3. Fallback final: Enciende CUALQUIER cámara disponible a cualquier resolución
+                        // INTENTO 3: Cualquier cámara disponible
                         this.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                     } catch (err3) {
-                        // Si falla aquí, mostramos el error exacto en pantalla para saber qué pasa
-                        alert(`Error de cámara: ${err3.name}\n${err3.message}\n\nAsegúrate de dar permisos y de estar en un sitio seguro (HTTPS o localhost).`);
+                        // Error Crítico (Permisos denegados o falta de HTTPS)
+                        alert(`Error al abrir la cámara:\n${err3.message}\n\nAsegúrate de otorgar permisos al navegador y utilizar un entorno seguro (HTTPS).`);
                         this.closeCamera();
-                        return; // Detenemos la ejecución
+                        return; // Abortamos si no hay cámara
                     }
                 }
             }
 
-            // Si llegamos hasta aquí, logramos capturar una cámara exitosamente
+            // Si se logró capturar el stream, lo inyectamos al video
             if (this.stream) {
                 this.DOM.video.srcObject = this.stream;
                 
-                // Forzamos la reproducción en móviles para evitar pantallas negras o blancas
+                // Forzar reproducción al cargar los metadatos evita pantallas en blanco en móviles
                 this.DOM.video.onloadedmetadata = () => {
-                    this.DOM.video.play().catch(e => {
-                        console.error("Error al reproducir el video:", e);
-                    });
+                    this.DOM.video.play().catch(e => console.error("Error al forzar autoplay:", e));
                 };
             }
         },
@@ -121,11 +124,14 @@ async openCamera() {
             }
             this.DOM.camSection.classList.add('d-none');
             this.resetCameraUI();
-            this.updateUI();
+            this.updateUI(); // Vuelve al Home o a la Galería
         },
 
         switchCamera() {
-            if (this.stream) this.stream.getTracks().forEach(track => track.stop());
+            if (this.stream) {
+                this.stream.getTracks().forEach(track => track.stop());
+            }
+            // Intercambiamos orientación y volvemos a iniciar
             this.currentFacingMode = this.currentFacingMode === 'environment' ? 'user' : 'environment';
             this.openCamera();
         },
@@ -135,37 +141,37 @@ async openCamera() {
             if (this.getGalleryCount() >= this.MAX_PAGES) {
                 return alert(`Límite máximo de ${this.MAX_PAGES} páginas alcanzado.`);
             }
-            if (!this.DOM.video.videoWidth) return;
+            if (!this.DOM.video.videoWidth) return; // Validación de seguridad
 
-            // 1. Dimensiones nativas de la cámara vs CSS Container
+            // Dimensiones reales de la cámara vs Dimensiones CSS
             const vw = this.DOM.video.videoWidth;
             const vh = this.DOM.video.videoHeight;
             const cw = this.DOM.video.clientWidth;
             const ch = this.DOM.video.clientHeight;
             
-            // 2. Escala de 'object-fit: cover'
+            // Escala del object-fit: cover
             const scale = Math.max(cw / vw, ch / vh);
             
-            // 3. Offset (Lo que quedó recortado y no se ve en pantalla)
+            // Desplazamiento invisible (recorte del CSS)
             const offsetX = ((vw * scale) - cw) / 2;
             const offsetY = ((vh * scale) - ch) / 2;
 
-            // 4. Posición de la guía A4 relativa al video
+            // Coordenadas en pantalla de la guía
             const guideRect = this.DOM.guide.getBoundingClientRect();
             const videoRect = this.DOM.video.getBoundingClientRect();
             
-            // 5. Cálculos para extracción exacta
+            // Traducción de píxeles visuales a píxeles reales del lente
             const cropX = ((guideRect.left - videoRect.left) + offsetX) / scale;
             const cropY = ((guideRect.top - videoRect.top) + offsetY) / scale;
             const cropW = guideRect.width / scale;
             const cropH = guideRect.height / scale;
 
-            // 6. Aplicar recorte al Canvas
+            // Renderizar recorte en Canvas
             this.DOM.canvas.width = cropW;
             this.DOM.canvas.height = cropH;
             this.DOM.ctx.drawImage(this.DOM.video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
             
-            // Guardar imagen y cambiar UI
+            // Guardar base64 y mostrar UI de revisión
             this.tempImageBase64 = this.DOM.canvas.toDataURL('image/jpeg', 0.9);
             this.DOM.preview.src = this.tempImageBase64;
             
@@ -185,19 +191,20 @@ async openCamera() {
 
         acceptPhoto() {
             this.addPageToGallery(this.tempImageBase64);
-            this.closeCamera(); // Cerramos la cámara para volver al panel de trabajo
+            this.resetCameraUI(); // Limpia la cámara para la próxima vez
+            this.closeCamera();
         },
 
-        // --- 4. IMPORTACIÓN (PDF.js y FileReader) ---
+        // --- 4. EXTRACCIÓN Y LECTURA DE ARCHIVOS (IMÁGENES Y PDFs) ---
         async handleFileUpload(event) {
             const files = event.target.files;
             if (!files || files.length === 0) return;
 
-            this.showLoading("Extrayendo archivos...");
+            this.showLoading("Procesando archivos...");
 
             for (let file of files) {
                 if (this.getGalleryCount() >= this.MAX_PAGES) {
-                    alert(`Límite de ${this.MAX_PAGES} páginas alcanzado. Algunos archivos se omitieron.`);
+                    alert(`Límite de ${this.MAX_PAGES} páginas alcanzado. Se omitieron archivos.`);
                     break;
                 }
                 
@@ -213,7 +220,7 @@ async openCamera() {
             }
 
             this.hideLoading();
-            this.DOM.fileUpload.value = ''; // Limpiar input
+            this.DOM.fileUpload.value = ''; // Limpiamos el input para permitir subir el mismo archivo 2 veces si se requiere
         },
 
         processImageFile(file) {
@@ -229,7 +236,7 @@ async openCamera() {
         },
 
         async processPDFFile(file) {
-            this.DOM.loadingText.textContent = "Desarmando PDF...";
+            this.DOM.loadingText.textContent = "Extrayendo páginas del PDF...";
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
             
@@ -237,7 +244,7 @@ async openCamera() {
                 if (this.getGalleryCount() >= this.MAX_PAGES) break;
                 
                 const page = await pdf.getPage(i);
-                const viewport = page.getViewport({ scale: 1.5 }); // Escala 1.5 balancea calidad/memoria
+                const viewport = page.getViewport({ scale: 1.5 }); // Escala ideal para móviles
                 
                 this.DOM.canvas.width = viewport.width;
                 this.DOM.canvas.height = viewport.height;
@@ -247,14 +254,14 @@ async openCamera() {
             }
         },
 
-        // --- 5. GALERÍA Y SORTABLE ---
+        // --- 5. GALERÍA Y REORDENAMIENTO ---
         initSortable() {
             new Sortable(this.DOM.gallery, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 delay: 150, 
-                delayOnTouchOnly: true,
-                onEnd: () => this.updateUI() // Renumera al soltar
+                delayOnTouchOnly: true, // Vital para no bloquear el scroll táctil
+                onEnd: () => this.updateUI()
             });
         },
 
@@ -268,14 +275,15 @@ async openCamera() {
             col.innerHTML = `
                 <div class="gallery-item">
                     <button class="btn-delete" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>
-                    <img src="${base64Src}" class="scanned-img" alt="Página Escaneada">
+                    <img src="${base64Src}" class="scanned-img" alt="Documento">
                     <div class="page-badge">Pág <span class="page-num"></span></div>
                 </div>
             `;
 
-            // Evento de eliminación
+            // Borrado con animación suave
             col.querySelector('.btn-delete').addEventListener('click', () => {
                 col.style.transform = 'scale(0)';
+                col.style.transition = 'transform 0.2s';
                 setTimeout(() => { col.remove(); this.updateUI(); }, 200);
             });
 
@@ -286,18 +294,18 @@ async openCamera() {
         updateUI() {
             const count = this.getGalleryCount();
             
-            // Renumerar páginas visualmente
+            // Renumerar etiquetas de páginas
             this.DOM.gallery.querySelectorAll('.gallery-item').forEach((item, index) => {
                 item.querySelector('.page-num').textContent = index + 1;
             });
 
-            // Actualizar contadores
+            // Actualizar Badge Inferior
             this.DOM.pageCounter.textContent = `${count} / ${this.MAX_PAGES} Páginas`;
             this.DOM.pageCounter.className = count >= this.MAX_PAGES 
                 ? 'badge bg-danger rounded-pill fs-6 px-3' 
                 : 'badge bg-primary rounded-pill fs-6 px-3';
 
-            // Mostrar/Ocultar áreas según haya páginas
+            // Flujo de vista: Home vs Galería
             if (count > 0) {
                 this.DOM.homeState.classList.add('d-none');
                 this.DOM.galSection.classList.remove('d-none');
@@ -309,41 +317,40 @@ async openCamera() {
             }
         },
 
-        // --- 6. GENERADOR DE PDF FINAL ---
+        // --- 6. GENERACIÓN DEL ARCHIVO PDF ---
         generatePDF() {
             const originalBtnHtml = this.DOM.btnGeneratePdf.innerHTML;
-            this.DOM.btnGeneratePdf.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Ensamblando...';
+            this.DOM.btnGeneratePdf.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Generando PDF...';
             this.DOM.btnGeneratePdf.disabled = true;
 
-            // Extraer parámetros
-            const formatStr = this.DOM.formatSelect.value; // 'a4' o 'letter'
+            // Leer variables del modal
+            const formatStr = this.DOM.formatSelect.value;
             let filename = this.DOM.filenameInput.value.trim() || "Documento_Escaneado";
-            const margin = parseInt(document.querySelector('input[name="marginOptions"]:checked').value);
+            const marginRadio = document.querySelector('input[name="marginOptions"]:checked');
+            const margin = marginRadio ? parseInt(marginRadio.value) : 0;
 
-            // Timeout para permitir que la UI se actualice (muestre el spinner)
+            // Timeout de UI para permitir pintar el Spinner antes de bloquear el hilo de JS
             setTimeout(() => {
                 try {
-                    // 1. Extraer imágenes en su orden actual del DOM
                     const images = Array.from(this.DOM.gallery.querySelectorAll('.scanned-img')).map(img => img.src);
-                    
-                    // 2. Iniciar jsPDF
+                    if(images.length === 0) throw new Error("Galería vacía");
+
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF('p', 'mm', formatStr); 
                     
                     const pdfW = doc.internal.pageSize.getWidth();
                     const pdfH = doc.internal.pageSize.getHeight();
 
-                    // 3. Procesar cada imagen
                     images.forEach((imgData, index) => {
                         if (index > 0) doc.addPage();
                         
                         const imgProps = doc.getImageProperties(imgData);
                         
-                        // Restar márgenes (doble porque aplica a ambos lados)
+                        // Área disponible tras aplicar márgenes
                         const availW = pdfW - (margin * 2); 
                         const availH = pdfH - (margin * 2);
                         
-                        // Lógica de Fit (Contener imagen sin deformar)
+                        // Matemáticas para encajar la imagen sin estirar (Object-fit: contain lógico)
                         let finalW = availW; 
                         let finalH = (imgProps.height * availW) / imgProps.width;
 
@@ -352,22 +359,21 @@ async openCamera() {
                             finalW = (imgProps.width * availH) / imgProps.height; 
                         }
 
-                        // Centrar matemáticamente
+                        // Centrado
                         const x = margin + ((availW - finalW) / 2); 
                         const y = margin + ((availH - finalH) / 2);
                         
                         doc.addImage(imgData, 'JPEG', x, y, finalW, finalH);
                     });
 
-                    // 4. Descargar
+                    // Descargar a dispositivo
                     doc.save(`${filename}.pdf`);
                     this.DOM.settingsModal.hide();
 
                 } catch (error) {
-                    console.error("Error generando PDF:", error);
-                    alert("Ocurrió un error al generar el PDF.");
+                    console.error("Error exportando PDF:", error);
+                    alert("Ocurrió un error al generar el PDF. Revisa tu consola.");
                 } finally {
-                    // Restaurar botón
                     this.DOM.btnGeneratePdf.innerHTML = originalBtnHtml;
                     this.DOM.btnGeneratePdf.disabled = false;
                 }
@@ -385,6 +391,6 @@ async openCamera() {
         }
     };
 
-    // Iniciar aplicación
+    // --- ARRANQUE ---
     ScannerApp.init();
 });

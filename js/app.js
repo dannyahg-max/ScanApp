@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
         MAX_PAGES: 20,
         stream: null,
         tempImageBase64: null,
-        currentFacingMode: 'environment', // Inicia con cámara trasera
+        currentFacingMode: 'environment', // Inicia con cámara trasera por defecto
 
         // --- REFERENCIAS AL DOM ---
         DOM: {
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btn-retake').addEventListener('click', () => this.resetCameraUI());
             document.getElementById('btn-accept').addEventListener('click', () => this.acceptPhoto());
 
-            // Eventos de Importación (Botón alterno y subida de archivos)
+            // Eventos de Importación
             const btnImportAlternative = document.getElementById('btn-import');
             if(btnImportAlternative) {
                 btnImportAlternative.addEventListener('click', () => this.DOM.fileUpload.click());
@@ -95,22 +95,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.warn("Fallo con configuración básica, encendiendo cualquier cámara...", err2);
                     
                     try {
-                        // INTENTO 3: Cualquier cámara disponible
+                        // INTENTO 3: Cualquier cámara disponible (último recurso)
                         this.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                     } catch (err3) {
-                        // Error Crítico (Permisos denegados o falta de HTTPS)
+                        // Error Crítico (Permisos denegados o falta de protocolo HTTPS)
                         alert(`Error al abrir la cámara:\n${err3.message}\n\nAsegúrate de otorgar permisos al navegador y utilizar un entorno seguro (HTTPS).`);
                         this.closeCamera();
-                        return; // Abortamos si no hay cámara
+                        return; 
                     }
                 }
             }
 
-            // Si se logró capturar el stream, lo inyectamos al video
+            // Si capturamos el stream, lo inyectamos al video
             if (this.stream) {
                 this.DOM.video.srcObject = this.stream;
                 
-                // Forzar reproducción al cargar los metadatos evita pantallas en blanco en móviles
+                // Forzar reproducción al cargar los metadatos evita pantallas en blanco en móviles Safari/Chrome
                 this.DOM.video.onloadedmetadata = () => {
                     this.DOM.video.play().catch(e => console.error("Error al forzar autoplay:", e));
                 };
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             this.DOM.camSection.classList.add('d-none');
             this.resetCameraUI();
-            this.updateUI(); // Vuelve al Home o a la Galería
+            this.updateUI(); // Vuelve al Home o a la Galería según corresponda
         },
 
         switchCamera() {
@@ -136,14 +136,14 @@ document.addEventListener('DOMContentLoaded', () => {
             this.openCamera();
         },
 
-        // --- 3. MOTOR DE RECORTE MATEMÁTICO ---
+        // --- 3. MOTOR DE RECORTE MATEMÁTICO EXACTO ---
         capturePhoto() {
             if (this.getGalleryCount() >= this.MAX_PAGES) {
                 return alert(`Límite máximo de ${this.MAX_PAGES} páginas alcanzado.`);
             }
             if (!this.DOM.video.videoWidth) return; // Validación de seguridad
 
-            // Dimensiones reales de la cámara vs Dimensiones CSS
+            // Dimensiones reales del hardware vs Dimensiones del CSS en pantalla
             const vw = this.DOM.video.videoWidth;
             const vh = this.DOM.video.videoHeight;
             const cw = this.DOM.video.clientWidth;
@@ -152,26 +152,26 @@ document.addEventListener('DOMContentLoaded', () => {
             // Escala del object-fit: cover
             const scale = Math.max(cw / vw, ch / vh);
             
-            // Desplazamiento invisible (recorte del CSS)
+            // Desplazamiento invisible (lo que se recorta fuera de la pantalla por el cover)
             const offsetX = ((vw * scale) - cw) / 2;
             const offsetY = ((vh * scale) - ch) / 2;
 
-            // Coordenadas en pantalla de la guía
+            // Coordenadas en pantalla de la guía vs el video
             const guideRect = this.DOM.guide.getBoundingClientRect();
             const videoRect = this.DOM.video.getBoundingClientRect();
             
-            // Traducción de píxeles visuales a píxeles reales del lente
+            // Traducción de píxeles visuales a píxeles reales del hardware
             const cropX = ((guideRect.left - videoRect.left) + offsetX) / scale;
             const cropY = ((guideRect.top - videoRect.top) + offsetY) / scale;
             const cropW = guideRect.width / scale;
             const cropH = guideRect.height / scale;
 
-            // Renderizar recorte en Canvas
+            // Renderizar el recorte en el Canvas oculto
             this.DOM.canvas.width = cropW;
             this.DOM.canvas.height = cropH;
             this.DOM.ctx.drawImage(this.DOM.video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
             
-            // Guardar base64 y mostrar UI de revisión
+            // Guardar en base64 de alta calidad y mostrar UI de revisión
             this.tempImageBase64 = this.DOM.canvas.toDataURL('image/jpeg', 0.9);
             this.DOM.preview.src = this.tempImageBase64;
             
@@ -191,11 +191,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         acceptPhoto() {
             this.addPageToGallery(this.tempImageBase64);
-            this.resetCameraUI(); // Limpia la cámara para la próxima vez
+            this.resetCameraUI(); 
             this.closeCamera();
         },
 
-        // --- 4. EXTRACCIÓN Y LECTURA DE ARCHIVOS (IMÁGENES Y PDFs) ---
+        // --- 4. IMPORTACIÓN Y EXTRACCIÓN (PDFs E IMÁGENES) ---
         async handleFileUpload(event) {
             const files = event.target.files;
             if (!files || files.length === 0) return;
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             for (let file of files) {
                 if (this.getGalleryCount() >= this.MAX_PAGES) {
-                    alert(`Límite de ${this.MAX_PAGES} páginas alcanzado. Se omitieron archivos.`);
+                    alert(`Límite de ${this.MAX_PAGES} páginas alcanzado. Se omitieron algunos archivos.`);
                     break;
                 }
                 
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             this.hideLoading();
-            this.DOM.fileUpload.value = ''; // Limpiamos el input para permitir subir el mismo archivo 2 veces si se requiere
+            this.DOM.fileUpload.value = ''; // Limpiamos el input para permitir subir el mismo archivo 2 veces
         },
 
         processImageFile(file) {
@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (this.getGalleryCount() >= this.MAX_PAGES) break;
                 
                 const page = await pdf.getPage(i);
-                const viewport = page.getViewport({ scale: 1.5 }); // Escala ideal para móviles
+                const viewport = page.getViewport({ scale: 1.5 }); // Escala ideal (balance entre calidad y RAM)
                 
                 this.DOM.canvas.width = viewport.width;
                 this.DOM.canvas.height = viewport.height;
@@ -254,13 +254,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        // --- 5. GALERÍA Y REORDENAMIENTO ---
+        // --- 5. GALERÍA Y REORDENAMIENTO (SortableJS) ---
         initSortable() {
             new Sortable(this.DOM.gallery, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 delay: 150, 
-                delayOnTouchOnly: true, // Vital para no bloquear el scroll táctil
+                delayOnTouchOnly: true, // Vital en móviles para no confundir arrastrar con hacer scroll
                 onEnd: () => this.updateUI()
             });
         },
@@ -294,18 +294,18 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUI() {
             const count = this.getGalleryCount();
             
-            // Renumerar etiquetas de páginas
+            // Renumerar etiquetas de páginas automáticamente
             this.DOM.gallery.querySelectorAll('.gallery-item').forEach((item, index) => {
                 item.querySelector('.page-num').textContent = index + 1;
             });
 
-            // Actualizar Badge Inferior
+            // Actualizar Badge de progreso Inferior
             this.DOM.pageCounter.textContent = `${count} / ${this.MAX_PAGES} Páginas`;
             this.DOM.pageCounter.className = count >= this.MAX_PAGES 
-                ? 'badge bg-danger rounded-pill fs-6 px-3' 
-                : 'badge bg-primary rounded-pill fs-6 px-3';
+                ? 'badge bg-danger rounded-pill fs-6 px-3 shadow-sm' 
+                : 'badge bg-primary rounded-pill fs-6 px-3 shadow-sm';
 
-            // Flujo de vista: Home vs Galería
+            // Alternar vista de Estado Inicial vs Galería Activa
             if (count > 0) {
                 this.DOM.homeState.classList.add('d-none');
                 this.DOM.galSection.classList.remove('d-none');
@@ -317,23 +317,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        // --- 6. GENERACIÓN DEL ARCHIVO PDF ---
+        // --- 6. GENERACIÓN FINAL DEL ARCHIVO PDF ---
         generatePDF() {
             const originalBtnHtml = this.DOM.btnGeneratePdf.innerHTML;
-            this.DOM.btnGeneratePdf.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Generando PDF...';
+            this.DOM.btnGeneratePdf.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Procesando PDF...';
             this.DOM.btnGeneratePdf.disabled = true;
 
-            // Leer variables del modal
+            // Leer variables de la interfaz
             const formatStr = this.DOM.formatSelect.value;
             let filename = this.DOM.filenameInput.value.trim() || "Documento_Escaneado";
             const marginRadio = document.querySelector('input[name="marginOptions"]:checked');
             const margin = marginRadio ? parseInt(marginRadio.value) : 0;
 
-            // Timeout de UI para permitir pintar el Spinner antes de bloquear el hilo de JS
+            // Timeout de UI para permitir al navegador repintar el botón en estado de carga ("Procesando...")
             setTimeout(() => {
                 try {
                     const images = Array.from(this.DOM.gallery.querySelectorAll('.scanned-img')).map(img => img.src);
-                    if(images.length === 0) throw new Error("Galería vacía");
+                    if(images.length === 0) throw new Error("La galería está vacía.");
 
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF('p', 'mm', formatStr); 
@@ -346,11 +346,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         const imgProps = doc.getImageProperties(imgData);
                         
-                        // Área disponible tras aplicar márgenes
+                        // Calcular área disponible respetando los márgenes seleccionados
                         const availW = pdfW - (margin * 2); 
                         const availH = pdfH - (margin * 2);
                         
-                        // Matemáticas para encajar la imagen sin estirar (Object-fit: contain lógico)
+                        // Matemáticas para ajustar la imagen a la hoja sin deformar (Object-fit lógico)
                         let finalW = availW; 
                         let finalH = (imgProps.height * availW) / imgProps.width;
 
@@ -359,20 +359,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             finalW = (imgProps.width * availH) / imgProps.height; 
                         }
 
-                        // Centrado
+                        // Centrar imagen en la hoja
                         const x = margin + ((availW - finalW) / 2); 
                         const y = margin + ((availH - finalH) / 2);
                         
                         doc.addImage(imgData, 'JPEG', x, y, finalW, finalH);
                     });
 
-                    // Descargar a dispositivo
+                    // Descargar el archivo al dispositivo
                     doc.save(`${filename}.pdf`);
                     this.DOM.settingsModal.hide();
 
                 } catch (error) {
                     console.error("Error exportando PDF:", error);
-                    alert("Ocurrió un error al generar el PDF. Revisa tu consola.");
+                    alert("Ocurrió un error al generar el PDF. Asegúrate de tener al menos una página.");
                 } finally {
                     this.DOM.btnGeneratePdf.innerHTML = originalBtnHtml;
                     this.DOM.btnGeneratePdf.disabled = false;
@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 300);
         },
 
-        // --- UTILIDADES ---
+        // --- UTILIDADES DE INTERFAZ ---
         showLoading(text) {
             this.DOM.loadingText.textContent = text;
             this.DOM.loadingOverlay.style.display = 'flex';
@@ -391,6 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- ARRANQUE ---
+    // --- ARRANQUE DE LA APLICACIÓN ---
     ScannerApp.init();
 });

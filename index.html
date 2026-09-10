@@ -3,45 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner PDF Pro</title>
+    <title>Scanner PDF Pro | Multiplataforma</title>
+    
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- CSS Propio -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<body class="bg-light d-flex flex-column min-vh-100">
 
-    <main class="app-container">
-        
-        <!-- HEADER PERMANENTE -->
-        <header class="app-header">
-            <h5 class="m-0 fw-bold"><i class="bi bi-file-earmark-pdf-fill text-danger"></i> PDF Scanner</h5>
-            <!-- Selector de Formato siempre visible -->
-            <select id="doc-format" class="form-select form-select-sm w-auto fw-bold shadow-sm">
-                <option value="a4" selected>Tamaño A4</option>
-                <option value="letter">Tamaño Carta</option>
-            </select>
-        </header>
-
-        <!-- ÁREA DE TRABAJO -->
-        <div class="content-area">
+    <!-- HEADER: Responsivo y fijo en la parte superior -->
+    <header class="navbar navbar-expand bg-white shadow-sm sticky-top px-3 px-md-4">
+        <div class="container-fluid p-0">
+            <span class="navbar-brand mb-0 h1 fw-bold">
+                <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Scanner Pro
+            </span>
             
-            <!-- ESTADO INICIAL / PANEL DE ACCIONES -->
-            <div id="home-state" class="text-center mt-4 px-3">
-                <p class="text-muted small mb-4">Selecciona cómo deseas agregar páginas a tu documento.</p>
-                <div class="d-grid gap-3">
-                    <button class="btn btn-primary btn-lg rounded-4 shadow-sm py-3 fw-bold" id="btn-open-camera">
-                        <i class="bi bi-camera-fill fs-4 d-block mb-1"></i> Iniciar Escáner
+            <div class="d-flex align-items-center gap-2">
+                <label for="doc-format" class="d-none d-sm-block text-muted small fw-bold mb-0">Formato:</label>
+                <select id="doc-format" class="form-select form-select-sm fw-bold border-0 bg-light cursor-pointer">
+                    <option value="a4" selected>Tamaño A4</option>
+                    <option value="letter">Tamaño Carta</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="container flex-grow-1 d-flex flex-column py-4 position-relative">
+        
+        <!-- SECCIÓN 1: ESTADO INICIAL (Vacío) -->
+        <section id="home-state" class="m-auto text-center w-100" style="max-width: 600px;">
+            <i class="bi bi-cloud-arrow-up text-primary opacity-50" style="font-size: 5rem;"></i>
+            <h2 class="fw-bold mt-3">Digitaliza tus documentos</h2>
+            <p class="text-muted mb-4">Usa tu cámara web/celular para escanear hojas, o importa imágenes y archivos PDF directamente desde tu dispositivo.</p>
+            
+            <div class="row g-3 justify-content-center">
+                <div class="col-12 col-sm-6">
+                    <button class="btn btn-primary w-100 py-3 rounded-4 shadow fw-bold d-flex flex-column align-items-center" id="btn-open-camera">
+                        <i class="bi bi-camera-fill fs-3 mb-1"></i> Iniciar Escáner
                     </button>
-                    <button class="btn btn-outline-dark btn-lg rounded-4 border-2 py-3 fw-bold" id="btn-import" onclick="document.getElementById('file-upload').click()">
-                        <i class="bi bi-file-earmark-plus fs-4 d-block mb-1"></i> Añadir Archivo (PDF/Foto)
+                </div>
+                <div class="col-12 col-sm-6">
+                    <button class="btn btn-outline-dark w-100 py-3 rounded-4 fw-bold d-flex flex-column align-items-center bg-white" id="btn-import" onclick="document.getElementById('file-upload').click()">
+                        <i class="bi bi-file-earmark-plus fs-3 mb-1"></i> Añadir Archivos
                     </button>
                     <input type="file" id="file-upload" class="d-none" accept="image/*, application/pdf" multiple>
                 </div>
             </div>
+        </section>
 
-            <!-- VISOR DE CÁMARA (Oculto por defecto) -->
-            <section id="camera-section" class="camera-section d-none">
-                <button id="btn-close-camera" class="btn-close-cam"><i class="bi bi-chevron-down"></i> Cerrar</button>
+        <!-- SECCIÓN 2: VISOR DE CÁMARA (Oculto por defecto) -->
+        <!-- En PC se verá como un recuadro centrado, en móvil ocupará la pantalla -->
+        <section id="camera-section" class="camera-wrapper d-none mx-auto w-100">
+            <div class="camera-container rounded-4 overflow-hidden shadow-lg position-relative bg-dark">
+                
+                <!-- Botón Cerrar superpuesto -->
+                <button id="btn-close-camera" class="btn btn-sm btn-dark position-absolute top-0 start-0 m-3 z-3 rounded-pill bg-opacity-75 shadow-sm border-0">
+                    <i class="bi bi-x-circle me-1"></i> Cerrar
+                </button>
+
+                <!-- Feed y Máscara -->
                 <video id="video-feed" autoplay playsinline></video>
                 <div id="scanner-guide">
                     <div class="corner top-left"></div>
@@ -49,92 +73,119 @@
                     <div class="corner bottom-left"></div>
                     <div class="corner bottom-right"></div>
                 </div>
-                <img id="photo-preview" alt="Vista previa" class="d-none">
+                <img id="photo-preview" alt="Vista previa recortada" class="d-none">
                 
-                <div class="camera-controls" id="controls-capture">
-                    <button class="icon-btn" id="btn-switch" title="Girar cámara"><i class="bi bi-arrow-repeat"></i></button>
-                    <button class="capture-btn" id="btn-capture"></button>
-                    <div style="width: 45px;"></div> <!-- Espaciador invisible -->
+                <!-- Controles: Escaneando -->
+                <div class="camera-controls w-100 position-absolute bottom-0 p-3 p-md-4 d-flex justify-content-center align-items-center gap-4 z-3" id="controls-capture">
+                    <button class="icon-btn btn-action" id="btn-switch" title="Cambiar cámara"><i class="bi bi-arrow-repeat"></i></button>
+                    <button class="capture-btn shadow-lg" id="btn-capture"></button>
+                    <div style="width: 50px;"></div> <!-- Espaciador para centrar el obturador -->
                 </div>
 
-                <div class="camera-controls d-none" id="controls-review">
-                    <button class="icon-btn bg-danger text-white border-0" id="btn-retake"><i class="bi bi-x-lg"></i></button>
-                    <button class="icon-btn bg-success text-white border-0" id="btn-accept"><i class="bi bi-check-lg"></i></button>
-                </div>
-            </section>
-
-            <!-- GALERÍA DE PÁGINAS -->
-            <section id="gallery-section" class="gallery-section d-none">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span class="text-muted small fw-bold"><i class="bi bi-grip-horizontal"></i> Páginas agregadas</span>
-                </div>
-                <div id="gallery" class="row g-2 pb-5">
-                    <!-- Miniaturas se inyectan aquí -->
-                </div>
-            </section>
-        </div>
-
-        <!-- FOOTER: SIEMPRE VISIBLE SI HAY PÁGINAS -->
-        <footer id="action-footer" class="action-footer d-none">
-            <div class="d-flex justify-content-between align-items-center mb-2 px-1">
-                <span class="fw-bold text-dark small">Páginas listas:</span>
-                <span id="page-counter" class="badge bg-dark rounded-pill">0 / 20</span>
-            </div>
-            <button id="btn-finish" class="btn btn-danger w-100 py-3 rounded-pill fw-bold shadow">
-                <i class="bi bi-magic me-2"></i> Crear PDF
-            </button>
-        </footer>
-
-        <!-- CANVAS Y OVERLAYS -->
-        <canvas id="canvas" class="d-none"></canvas>
-        <div id="loading-overlay">
-            <div class="spinner-border text-light" role="status"></div>
-            <p class="mt-3 text-white fw-bold" id="loading-text">Procesando...</p>
-        </div>
-
-        <!-- MODAL GENERAR PDF (Ahora pregunta el nombre) -->
-        <div class="modal fade" id="settingsModal" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content rounded-4 border-0 shadow">
-                    <div class="modal-header border-0 pb-0">
-                        <h5 class="modal-title fw-bold">Guardar PDF</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <!-- Campo Nombre de Archivo -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small">Nombre del archivo:</label>
-                            <input type="text" id="pdf-filename" class="form-control form-control-lg bg-light" value="Mi_Documento" placeholder="Ej. Contrato_Alquiler">
-                        </div>
-
-                        <label class="form-label fw-bold text-muted small">Márgenes de página:</label>
-                        <div class="list-group">
-                            <label class="list-group-item d-flex gap-2 p-3 border-0 rounded-3 mb-2 bg-light">
-                                <input class="form-check-input flex-shrink-0" type="radio" name="marginOptions" value="0" checked>
-                                <span><strong class="d-block">Sin margen</strong><small class="text-muted">La imagen llena la hoja.</small></span>
-                            </label>
-                            <label class="list-group-item d-flex gap-2 p-3 border-0 rounded-3 mb-2 bg-light">
-                                <input class="form-check-input flex-shrink-0" type="radio" name="marginOptions" value="10">
-                                <span><strong class="d-block">Estándar (10mm)</strong><small class="text-muted">Borde formal blanco.</small></span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-0 pt-0">
-                        <button class="btn btn-dark w-100 py-3 rounded-pill fw-bold" id="btn-generate-pdf">
-                            <i class="bi bi-download me-2"></i> Generar y Descargar
-                        </button>
-                    </div>
+                <!-- Controles: Revisión de Foto -->
+                <div class="camera-controls w-100 position-absolute bottom-0 p-3 p-md-4 d-flex justify-content-center align-items-center gap-4 z-3 d-none" id="controls-review">
+                    <button class="icon-btn bg-danger text-white border-0 btn-action" id="btn-retake" title="Descartar"><i class="bi bi-trash3-fill"></i></button>
+                    <button class="icon-btn bg-success text-white border-0 btn-action" id="btn-accept" title="Guardar"><i class="bi bi-check-lg"></i></button>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <!-- SECCIÓN 3: GALERÍA DE PÁGINAS (Oculto hasta agregar la primera página) -->
+        <section id="gallery-section" class="w-100 mt-4 d-none">
+            <div class="d-flex justify-content-between align-items-end mb-3 border-bottom pb-2">
+                <h5 class="fw-bold m-0"><i class="bi bi-images text-primary me-2"></i>Páginas del Documento</h5>
+                <span class="text-muted small d-none d-sm-inline"><i class="bi bi-arrows-move"></i> Arrastra para ordenar</span>
+            </div>
+            
+            <!-- Grid responsivo: 2 col en móvil, 3 en tablet, 4 en laptop, 5 en monitores grandes -->
+            <div id="gallery" class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-xl-5 g-3 pb-5 pb-md-0">
+                <!-- Las miniaturas se inyectan aquí vía JS -->
+            </div>
+            
+            <!-- Botón extra para seguir añadiendo al final de la galería -->
+            <div class="text-center mt-4 mb-5 pb-5 pb-md-0">
+                <button class="btn btn-outline-primary rounded-pill fw-bold" onclick="document.getElementById('file-upload').click()">
+                    <i class="bi bi-plus-circle me-1"></i> Añadir más páginas
+                </button>
+            </div>
+        </section>
 
     </main>
 
+    <!-- FOOTER FLOTANTE / FIXED BAR (Generar PDF) -->
+    <!-- En móvil se pega al fondo, en escritorio se convierte en una barra inferior completa -->
+    <footer id="action-footer" class="action-footer d-none bg-white shadow-lg border-top py-3 px-3 px-md-5 w-100 fixed-bottom">
+        <div class="container-fluid p-0 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <div class="text-center text-md-start w-100">
+                <span class="fw-bold text-dark d-block d-md-inline me-md-3 mb-1 mb-md-0">Estado del documento:</span>
+                <span id="page-counter" class="badge bg-primary rounded-pill fs-6 px-3">0 / 20 Páginas</span>
+            </div>
+            <button id="btn-finish" class="btn btn-danger btn-lg rounded-pill fw-bold w-100 w-md-auto px-md-5 shadow-sm">
+                <i class="bi bi-magic me-2"></i> Crear PDF
+            </button>
+        </div>
+    </footer>
+
+    <!-- CANVAS OCULTO (Motor de recorte e importación) -->
+    <canvas id="canvas" class="d-none"></canvas>
+
+    <!-- PANTALLA DE CARGA (Overlay completo) -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+        <h5 class="mt-3 fw-bold text-dark bg-white px-4 py-2 rounded-pill shadow-sm" id="loading-text">Procesando...</h5>
+    </div>
+
+    <!-- MODAL: AJUSTES FINALES Y DESCARGA -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header bg-light border-0 rounded-top-4 pb-3">
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-gear-fill text-primary me-2"></i>Guardar PDF</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Nombre del Archivo -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Nombre del archivo</label>
+                        <input type="text" id="pdf-filename" class="form-control form-control-lg bg-light border-0 fw-bold" value="Mi_Documento" placeholder="Ej. Contrato_2026">
+                    </div>
+
+                    <!-- Márgenes -->
+                    <label class="form-label fw-bold text-muted small text-uppercase">Márgenes de página</label>
+                    <div class="list-group shadow-sm border-0">
+                        <label class="list-group-item d-flex gap-3 p-3 border-0 border-bottom mb-0 bg-white align-items-center cursor-pointer">
+                            <input class="form-check-input flex-shrink-0 fs-5 mt-0" type="radio" name="marginOptions" value="0" checked>
+                            <div>
+                                <strong class="d-block text-dark">Sin margen</strong>
+                                <small class="text-muted">La imagen llena la hoja completa.</small>
+                            </div>
+                        </label>
+                        <label class="list-group-item d-flex gap-3 p-3 border-0 bg-white align-items-center cursor-pointer">
+                            <input class="form-check-input flex-shrink-0 fs-5 mt-0" type="radio" name="marginOptions" value="10">
+                            <div>
+                                <strong class="d-block text-dark">Estándar (10mm)</strong>
+                                <small class="text-muted">Borde blanco formal estilo escáner.</small>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button class="btn btn-dark w-100 py-3 rounded-pill fw-bold shadow" id="btn-generate-pdf">
+                        <i class="bi bi-download me-2"></i> Generar y Descargar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIBRERÍAS EXTERNAS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    
+    <!-- SCRIPT PROPIO -->
     <script src="js/app.js"></script>
 </body>
 </html>

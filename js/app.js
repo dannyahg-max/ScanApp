@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         // --- 2. GESTIÓN DE CÁMARA ---
-        async openCamera() {
+async openCamera() {
             this.DOM.homeState.classList.add('d-none');
             this.DOM.camSection.classList.remove('d-none');
             
@@ -81,13 +81,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     audio: false
                 });
+                
                 this.DOM.video.srcObject = this.stream;
+                
+                // IMPORTANTE: Forzar la reproducción para evitar pantalla en blanco en móviles
+                this.DOM.video.onloadedmetadata = () => {
+                    this.DOM.video.play().catch(e => console.error("Error al forzar el play:", e));
+                };
+
             } catch (err) {
                 console.error("Error de cámara:", err);
-                alert("No se pudo iniciar la cámara. Verifica los permisos del navegador.");
+                alert("No se pudo iniciar la cámara. Verifica los permisos del navegador o recarga la página.");
                 this.closeCamera();
             }
-        },
+        },,
 
         closeCamera() {
             if (this.stream) {
